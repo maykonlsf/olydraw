@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use egui::{Color32, Painter, Pos2, Stroke};
 
-const TRAIL_LIFETIME: Duration = Duration::from_millis(700);
+const TRAIL_LIFETIME: Duration = Duration::from_millis(1200);
 
 /// Ephemeral laser-pointer trail. Never enters the scene or undo history.
 #[derive(Default)]

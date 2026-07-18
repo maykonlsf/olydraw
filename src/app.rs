@@ -490,7 +490,10 @@ impl OlyApp {
             .or_else(|| response.hover_pos());
 
         if self.tool == ToolKind::Laser {
-            if let Some(pos) = response.hover_pos() {
+            // Trail only while the button is held, like drawing.
+            if response.is_pointer_button_down_on()
+                && let Some(pos) = response.interact_pointer_pos()
+            {
                 self.laser.push(pos);
             }
             return;
