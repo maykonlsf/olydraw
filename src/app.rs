@@ -519,6 +519,48 @@ impl OlyApp {
             return;
         }
 
+        // Drawing tools start on the raw button press at its true origin.
+        // Waiting for egui's click-vs-drag disambiguation (~6px of motion)
+        // would swallow the beginning of every stroke.
+        let immediate = matches!(
+            self.tool,
+            ToolKind::Rect
+                | ToolKind::Diamond
+                | ToolKind::Ellipse
+                | ToolKind::Arrow
+                | ToolKind::Line
+                | ToolKind::Freehand
+                | ToolKind::Eraser
+        );
+        if immediate {
+            let (pressed, down, released, origin) = response.ctx.input(|i| {
+                (
+                    i.pointer.primary_pressed(),
+                    i.pointer.primary_down(),
+                    i.pointer.primary_released(),
+                    i.pointer.press_origin(),
+                )
+            });
+            if pressed
+                && response.hovered()
+                && let Some(pos) = origin.or(pointer)
+            {
+                self.start_drag(pos);
+            }
+            if down && self.drag.is_some() {
+                for p in moves {
+                    self.update_drag(p, shift);
+                }
+                if let Some(pos) = pointer {
+                    self.update_drag(pos, shift);
+                }
+            }
+            if released && self.drag.is_some() {
+                self.commit_drag();
+            }
+            return;
+        }
+
         if response.drag_started()
             && let Some(pos) = pointer
         {
@@ -527,11 +569,6 @@ impl OlyApp {
         if response.dragged()
             && let Some(pos) = pointer
         {
-            if matches!(self.drag, Some(DragOp::Freehand { .. })) {
-                for p in moves {
-                    self.update_drag(p, shift);
-                }
-            }
             self.update_drag(pos, shift);
         }
         if response.drag_stopped() {
