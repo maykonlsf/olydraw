@@ -495,6 +495,8 @@ impl OlyApp {
                 && let Some(pos) = response.interact_pointer_pos()
             {
                 self.laser.push(pos);
+            } else {
+                self.laser.break_stroke();
             }
             return;
         }

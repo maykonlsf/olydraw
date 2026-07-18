@@ -5,19 +5,27 @@ use egui::{Color32, Painter, Pos2, Stroke};
 const TRAIL_LIFETIME: Duration = Duration::from_millis(1200);
 
 /// Ephemeral laser-pointer trail. Never enters the scene or undo history.
+/// Points carry a stroke id so separate press-drag-release gestures fade
+/// independently instead of being connected.
 #[derive(Default)]
 pub struct LaserTrail {
-    points: Vec<(Pos2, Instant)>,
+    points: Vec<(Pos2, Instant, u32)>,
+    stroke: u32,
 }
 
 impl LaserTrail {
     pub fn push(&mut self, pos: Pos2) {
-        self.points.push((pos, Instant::now()));
+        self.points.push((pos, Instant::now(), self.stroke));
+    }
+
+    /// Ends the current stroke; the next push starts a disconnected one.
+    pub fn break_stroke(&mut self) {
+        self.stroke = self.stroke.wrapping_add(1);
     }
 
     pub fn prune(&mut self) {
         let now = Instant::now();
-        self.points.retain(|(_, t)| now - *t < TRAIL_LIFETIME);
+        self.points.retain(|(_, t, _)| now - *t < TRAIL_LIFETIME);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -32,8 +40,11 @@ impl LaserTrail {
         let now = Instant::now();
         let life = TRAIL_LIFETIME.as_secs_f32();
         for w in self.points.windows(2) {
-            let (a, ta) = w[0];
-            let (b, _) = w[1];
+            let (a, ta, sa) = w[0];
+            let (b, _, sb) = w[1];
+            if sa != sb {
+                continue;
+            }
             let age = (now - ta).as_secs_f32();
             let fade = (1.0 - age / life).clamp(0.0, 1.0);
             let glow = Color32::from_rgba_unmultiplied(255, 60, 60, (90.0 * fade) as u8);
@@ -41,7 +52,7 @@ impl LaserTrail {
             painter.line_segment([a, b], Stroke::new(9.0 * fade + 2.0, glow));
             painter.line_segment([a, b], Stroke::new(3.5 * fade + 1.0, core));
         }
-        if let Some((head, _)) = self.points.last() {
+        if let Some((head, _, _)) = self.points.last() {
             painter.circle_filled(*head, 5.0, Color32::from_rgb(255, 70, 70));
             painter.circle_filled(*head, 2.5, Color32::from_rgb(255, 220, 220));
         }
