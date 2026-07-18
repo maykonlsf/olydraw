@@ -113,6 +113,7 @@ fn socket_name(name: &str) -> Result<Name<'static>, String> {
         .map_err(|e| e.to_string())
 }
 
+#[cfg(not(windows))]
 fn socket_path(name: &str) -> std::path::PathBuf {
     std::env::temp_dir().join(format!("{name}.sock"))
 }
