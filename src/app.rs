@@ -95,6 +95,9 @@ pub struct OlyApp {
     _tray: Option<crate::tray::Tray>,
     visible: bool,
     sized: bool,
+    /// A global point inside the monitor the overlay was last shown on,
+    /// used to capture the right screen for composite export.
+    capture_point: Option<(i32, i32)>,
 }
 
 impl OlyApp {
@@ -187,6 +190,29 @@ impl OlyApp {
             _tray: tray,
             visible: true,
             sized: false,
+            capture_point: None,
+        }
+    }
+
+    /// Positions and sizes the overlay to fill the monitor containing the
+    /// cursor. Falls back to the current monitor at the primary origin when
+    /// the cursor's monitor can't be determined (non-macOS for now).
+    fn move_to_active_monitor(&mut self, ctx: &egui::Context) {
+        #[cfg(target_os = "macos")]
+        if let Some(m) = crate::platform_macos::cursor_monitor() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(Pos2::new(m.x, m.y)));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(egui::Vec2::new(
+                m.width, m.height,
+            )));
+            self.capture_point =
+                Some(((m.x + m.width / 2.0) as i32, (m.y + m.height / 2.0) as i32));
+            self.sized = true;
+            return;
+        }
+        if let Some(size) = ctx.input(|i| i.viewport().monitor_size) {
+            ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(Pos2::ZERO));
+            ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
+            self.sized = true;
         }
     }
 
@@ -215,9 +241,10 @@ impl OlyApp {
     }
 
     fn finish_composite(&mut self, ctx: &egui::Context) {
-        let result = crate::capture::composite_with_screen(&self.scene).and_then(|img| {
-            crate::export::save_image(&img, &crate::export::export_dir(&self.prefs)?)
-        });
+        let result = crate::capture::composite_with_screen(&self.scene, self.capture_point)
+            .and_then(|img| {
+                crate::export::save_image(&img, &crate::export::export_dir(&self.prefs)?)
+            });
         // Bring the overlay back before reporting.
         if !self.visible {
             self.toggle_visibility(ctx);
@@ -267,6 +294,7 @@ impl OlyApp {
     fn toggle_visibility(&mut self, ctx: &egui::Context) {
         self.visible = !self.visible;
         if self.visible {
+            self.move_to_active_monitor(ctx);
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
             ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
         } else {
@@ -732,14 +760,9 @@ impl eframe::App for OlyApp {
     // Runs even while the window is hidden (woken by request_repaint from
     // the IPC thread), so toggle commands always land.
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Size to the full monitor once we know its dimensions.
+        // Size to the cursor's monitor on the first frames after startup.
         if !self.sized {
-            let monitor = ctx.input(|i| i.viewport().monitor_size);
-            if let Some(size) = monitor {
-                ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(Pos2::ZERO));
-                ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(size));
-                self.sized = true;
-            }
+            self.move_to_active_monitor(ctx);
         }
 
         let cmds = std::mem::take(&mut *self.pending_cmds.lock().unwrap());

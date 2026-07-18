@@ -3,11 +3,13 @@ use image::RgbaImage;
 use crate::export::png::scene_to_rgba_scaled;
 use crate::scene::Scene;
 
-/// Captures the monitor at the window origin and composites the scene on
-/// top, matching physical pixels via the monitor scale factor.
+/// Captures the monitor containing `at` (global logical point; the overlay's
+/// monitor) and composites the scene on top, matching physical pixels via the
+/// monitor scale factor. Falls back to the primary monitor when `at` is None.
 /// The overlay window must already be hidden when this is called.
-pub fn composite_with_screen(scene: &Scene) -> Result<RgbaImage, String> {
-    let monitor = xcap::Monitor::from_point(0, 0)
+pub fn composite_with_screen(scene: &Scene, at: Option<(i32, i32)>) -> Result<RgbaImage, String> {
+    let (x, y) = at.unwrap_or((0, 0));
+    let monitor = xcap::Monitor::from_point(x, y)
         .or_else(|_| {
             xcap::Monitor::all().and_then(|mut all| {
                 if all.is_empty() {
