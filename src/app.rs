@@ -488,13 +488,31 @@ impl OlyApp {
         let pointer = response
             .interact_pointer_pos()
             .or_else(|| response.hover_pos());
+        // Intermediate pointer positions from this frame. Pen tablets (and
+        // fast mice) report more often than we render; sampling only the
+        // final position per frame would cut the corners of fast strokes.
+        let moves: Vec<Pos2> = response.ctx.input(|i| {
+            i.events
+                .iter()
+                .filter_map(|e| match e {
+                    egui::Event::PointerMoved(p) => Some(*p),
+                    _ => None,
+                })
+                .collect()
+        });
 
         if self.tool == ToolKind::Laser {
             // Trail only while the button is held, like drawing.
             if response.is_pointer_button_down_on()
                 && let Some(pos) = response.interact_pointer_pos()
             {
-                self.laser.push(pos);
+                if moves.is_empty() {
+                    self.laser.push(pos);
+                } else {
+                    for p in moves {
+                        self.laser.push(p);
+                    }
+                }
             } else {
                 self.laser.break_stroke();
             }
@@ -509,6 +527,11 @@ impl OlyApp {
         if response.dragged()
             && let Some(pos) = pointer
         {
+            if matches!(self.drag, Some(DragOp::Freehand { .. })) {
+                for p in moves {
+                    self.update_drag(p, shift);
+                }
+            }
             self.update_drag(pos, shift);
         }
         if response.drag_stopped() {
