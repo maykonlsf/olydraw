@@ -32,14 +32,14 @@ pub fn toolbar(app: &mut OlyApp, ctx: &egui::Context) {
 fn tool_buttons(app: &mut OlyApp, ui: &mut egui::Ui) {
     let tools: [(ToolKind, &str, &str); 10] = [
         (ToolKind::Select, "⬉", "Select — V or 1"),
-        (ToolKind::Rect, "▭", "Rectangle — R or 2"),
-        (ToolKind::Diamond, "◇", "Diamond — D or 3"),
+        (ToolKind::Rect, "■", "Rectangle — R or 2"),
+        (ToolKind::Diamond, "♦", "Diamond — D or 3"),
         (ToolKind::Ellipse, "○", "Ellipse — O or 4"),
-        (ToolKind::Arrow, "➔", "Arrow — A or 5"),
+        (ToolKind::Arrow, "➡", "Arrow — A or 5"),
         (ToolKind::Line, "―", "Line — L or 6"),
         (ToolKind::Freehand, "✏", "Draw — P or 7"),
         (ToolKind::Text, "T", "Text — T or 8"),
-        (ToolKind::Eraser, "⌫", "Eraser — E or 0"),
+        (ToolKind::Eraser, "🔳", "Eraser — E or 0"),
         (ToolKind::Laser, "☄", "Laser pointer — K"),
     ];
     for (tool, icon, tip) in tools {
@@ -104,11 +104,11 @@ fn color_buttons(app: &mut OlyApp, ui: &mut egui::Ui) {
 }
 
 fn action_buttons(app: &mut OlyApp, ui: &mut egui::Ui, ctx: &egui::Context) {
-    if ui.button("↶").on_hover_text("Undo — Ctrl/Cmd+Z").clicked() {
+    if ui.button("↺").on_hover_text("Undo — Ctrl/Cmd+Z").clicked() {
         app.scene.undo();
     }
     if ui
-        .button("↷")
+        .button("↻")
         .on_hover_text("Redo — Ctrl/Cmd+Shift+Z")
         .clicked()
     {
@@ -131,10 +131,10 @@ fn action_buttons(app: &mut OlyApp, ui: &mut egui::Ui, ctx: &egui::Context) {
     if ui.button("⚙").on_hover_text("Settings").clicked() {
         app.show_settings = true;
     }
-    if ui.button("✕").on_hover_text("Hide overlay — Esc").clicked() {
+    if ui.button("✖").on_hover_text("Hide overlay — Esc").clicked() {
         app.hide_overlay(ctx);
     }
-    if ui.button("⏻").on_hover_text("Quit olydraw").clicked() {
+    if ui.button("🚪").on_hover_text("Quit olydraw").clicked() {
         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
     }
 }
