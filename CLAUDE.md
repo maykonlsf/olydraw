@@ -14,6 +14,7 @@ BLESS=1 cargo test --test png_export   # regenerate golden images in tests/golde
 cargo clippy --all-targets -- -D warnings   # CI-enforced
 cargo fmt --check                           # CI-enforced
 cargo run                              # start overlay; `cargo run -- toggle` toggles a running instance
+cargo run -- --hidden                  # start with no overlay shown (tray/background only; launch-at-login use)
 ```
 
 CI runs test/clippy/fmt on macOS, Windows, and Ubuntu (`.github/workflows/ci.yml`). Rust edition 2024, stable toolchain (`rust-toolchain.toml`).
@@ -34,6 +35,7 @@ Load-bearing invariants:
 - **Repaint discipline**: the overlay must idle at ~0% CPU. Continuous repaints are requested only while a drag or the laser trail is active. Don't add per-frame work that runs unconditionally.
 - **Overlay lifecycle**: the window is hidden, never closed, on toggle (instant re-show; scene survives hide but not restart). On every show, `app.rs::move_to_active_monitor` repositions to the monitor containing the cursor (macOS-only today via `platform_macos::cursor_monitor`; other OSes fall back to primary) and records `capture_point` so composite export captures the right monitor. Composite export hides the overlay, waits `COMPOSITE_DELAY`, captures via xcap, then re-shows.
 - **Prefs forward-compat**: every `Prefs` field carries `#[serde(default)]`; corrupt/missing/unknown-key TOML must load as defaults, never error (`prefs.rs`, enforced by tests).
+- **No headless daemon mode**: olydraw only runs as a per-user GUI process with desktop/display access — `--hidden` suppresses the initial window, it doesn't detach from the session. Launch-at-login is done via OS-level login items (`packaging/macos/com.olydraw.app.plist.template`, `packaging/linux/olydraw-autostart.desktop.template`, `packaging/windows/register-autostart.ps1`), not a service manager; see README "Launch at login".
 
 Platform-specific code is `cfg`-gated at module level (`platform_macos.rs`, `tray.rs` macOS/Windows only). macOS window elevation (above fullscreen apps, all Spaces) and monitor lookup use `objc2-app-kit`; coordinates there convert between Cocoa bottom-left-origin and the top-left-origin logical points egui uses.
 

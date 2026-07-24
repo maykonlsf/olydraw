@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=olydraw
+Comment=Lightweight screen-overlay drawing tool
+Exec=@EXEC_PATH@ --hidden
+Icon=olydraw
+Terminal=false
+X-GNOME-Autostart-enabled=true

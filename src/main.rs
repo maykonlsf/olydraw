@@ -15,6 +15,11 @@ fn main() -> eframe::Result {
         return Ok(());
     }
 
+    // Start hidden (tray/background only) for launch-at-login use: `--hidden`
+    // or OLYDRAW_START_HIDDEN=1.
+    let start_hidden = std::env::args().any(|a| a == "--hidden")
+        || std::env::var("OLYDRAW_START_HIDDEN").as_deref() == Ok("1");
+
     // Single instance: if one is already running, toggle it instead.
     let (server, ipc_rx) = match ipc::bind(&socket) {
         Ok(bound) => bound,
@@ -39,7 +44,7 @@ fn main() -> eframe::Result {
     let result = eframe::run_native(
         "olydraw",
         options,
-        Box::new(move |cc| Ok(Box::new(OlyApp::new(cc, ipc_rx)))),
+        Box::new(move |cc| Ok(Box::new(OlyApp::new(cc, ipc_rx, start_hidden)))),
     );
     drop(server);
     result

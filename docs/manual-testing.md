@@ -9,6 +9,8 @@ Automated tests cover the headless core. Everything below touches OS windowing a
 - [ ] Kill -9 the process, relaunch — starts cleanly (stale socket recovery)
 - [ ] Tray icon (macOS/Windows): show/hide, clear, quit all work
 - [ ] Esc priority: commits text → cancels drag → deselects → hides
+- [ ] `olydraw --hidden` (or `OLYDRAW_START_HIDDEN=1`) starts with no overlay visible; tray/hotkey/`toggle` still bring it up
+- [ ] Launch-at-login setup (see README "Launch at login") starts olydraw hidden after a fresh login/boot on each OS
 
 ## Drawing
 - [ ] Every tool draws correctly; keyboard shortcuts V/1 R/2 D/3 O/4 A/5 L/6 P/7 T/8 E/0 K switch tools (not while typing text)

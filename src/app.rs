@@ -94,6 +94,9 @@ pub struct OlyApp {
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     _tray: Option<crate::tray::Tray>,
     visible: bool,
+    /// Set at startup when launched with `--hidden`; consumed on the first
+    /// frame to send the OS-level hide command (see `logic`).
+    hide_pending: bool,
     sized: bool,
     /// A global point inside the monitor the overlay was last shown on,
     /// used to capture the right screen for composite export.
@@ -101,7 +104,11 @@ pub struct OlyApp {
 }
 
 impl OlyApp {
-    pub fn new(cc: &eframe::CreationContext<'_>, ipc_rx: Receiver<IpcCommand>) -> Self {
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        ipc_rx: Receiver<IpcCommand>,
+        start_hidden: bool,
+    ) -> Self {
         let prefs_dir = directories::ProjectDirs::from("com", "olydraw", "olydraw")
             .map(|d| d.config_dir().to_path_buf());
         let prefs = prefs_dir
@@ -188,7 +195,8 @@ impl OlyApp {
             hotkey,
             #[cfg(any(target_os = "macos", target_os = "windows"))]
             _tray: tray,
-            visible: true,
+            visible: !start_hidden,
+            hide_pending: start_hidden,
             sized: false,
             capture_point: None,
         }
@@ -828,6 +836,16 @@ impl eframe::App for OlyApp {
         // Size to the cursor's monitor on the first frames after startup.
         if !self.sized {
             self.move_to_active_monitor(ctx);
+        }
+
+        // Launched with `--hidden`: the window is created visible like
+        // normal, then hidden here via the same OS-level command the
+        // tray/hotkey toggle uses (an initial-visibility builder flag isn't
+        // reliably honored and can leave an invisible window still eating
+        // input).
+        if self.hide_pending {
+            self.hide_pending = false;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         }
 
         let cmds = std::mem::take(&mut *self.pending_cmds.lock().unwrap());
