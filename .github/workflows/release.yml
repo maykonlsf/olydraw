@@ -18,11 +18,11 @@ jobs:
         include:
           - os: macos-latest
             target: x86_64-apple-darwin
-            asset_name: olydraw-macos-amd64
+            asset_name: olydraw-macos-amd64.dmg
             binary_name: olydraw
           - os: macos-latest
             target: aarch64-apple-darwin
-            asset_name: olydraw-macos-arm64
+            asset_name: olydraw-macos-arm64.dmg
             binary_name: olydraw
           - os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -58,7 +58,25 @@ jobs:
           key: ${{ matrix.target }}
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
+      - name: Package macOS app bundle as DMG
+        if: runner.os == 'macOS'
+        run: |
+          version="${{ github.event.release.tag_name }}"
+          version="${version#v}"
+
+          app="olydraw.app"
+          mkdir -p "$app/Contents/MacOS"
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "$app/Contents/MacOS/olydraw"
+          sed "s/@VERSION@/$version/g" packaging/macos/Info.plist.template > "$app/Contents/Info.plist"
+
+          dmg_root="dmg-root"
+          mkdir -p "$dmg_root"
+          cp -R "$app" "$dmg_root/"
+          ln -s /Applications "$dmg_root/Applications"
+
+          hdiutil create -volname olydraw -srcfolder "$dmg_root" -ov -format UDZO "${{ matrix.asset_name }}"
       - name: Rename binary
+        if: runner.os != 'macOS'
         shell: bash
         run: cp target/${{ matrix.target }}/release/${{ matrix.binary_name }} ${{ matrix.asset_name }}
       - name: Upload release asset
