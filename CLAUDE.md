@@ -16,7 +16,7 @@ cargo fmt --check                           # CI-enforced
 cargo run                              # start overlay; `cargo run -- toggle` toggles a running instance
 ```
 
-CI runs test/clippy/fmt on macOS, Windows, and Ubuntu (`.github/workflows/ci.yml`).
+CI runs test/clippy/fmt on macOS, Windows, and Ubuntu (`.github/workflows/ci.yml`). Rust edition 2024, stable toolchain (`rust-toolchain.toml`).
 
 ## Architecture
 
