@@ -22,6 +22,17 @@ Automated tests cover the headless core. Everything below touches OS windowing a
 - [ ] Undo/redo across all ops incl. clear; toolbar buttons match shortcuts
 - [ ] Laser: fading red trail follows cursor, disappears ~0.7 s, CPU drops back to ~0 after
 
+## Passthrough
+- [ ] Toolbar button and its hotkey (default Ctrl/Cmd+Shift+P) toggle passthrough on/off; button reflects active state
+- [ ] While passthrough is on: clicks/scroll reach the app underneath (e.g. scroll a browser tab behind the overlay)
+- [ ] While passthrough is on: existing drawings remain visible; toolbar remains visible but does not respond to clicks
+- [ ] While passthrough is on: keyboard tool-switching shortcuts do nothing (window no longer holds input focus)
+- [ ] Toggling passthrough off restores drawing/toolbar interaction immediately, no restart needed
+- [ ] Hiding the overlay (hotkey/tray/`olydraw toggle`) while in passthrough, then showing it again, returns to normal drawing mode (not passthrough)
+- [ ] Settings dialog: rebinding the passthrough hotkey applies immediately; invalid string shows error and keeps old binding
+- [ ] Passthrough hotkey persists across restart, same as the show/hide hotkey
+- [ ] Wayland: `olydraw passthrough` from a shell toggles the running instance's passthrough state
+
 ## Export
 - [ ] PNG (annotation) transparent background, SVG opens in a browser, clipboard PNG pastes into another app
 - [ ] Composite PNG: overlay vanishes from the capture, annotations aligned with screen content on a HiDPI/Retina display (scale factor correct)
@@ -29,7 +40,7 @@ Automated tests cover the headless core. Everything below touches OS windowing a
 - [ ] Files land in ~/Pictures/olydraw or the configured directory
 
 ## Prefs & settings
-- [ ] Color, stroke width, palette, export dir, hotkey persist across restart
+- [ ] Color, stroke width, palette, export dir, hotkeys persist across restart
 - [ ] Hotkey rebinding via Settings applies immediately; invalid string shows error, old binding kept
 - [ ] Corrupt prefs.toml → app starts with defaults
 

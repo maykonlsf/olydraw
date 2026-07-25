@@ -131,6 +131,14 @@ fn action_buttons(app: &mut OlyApp, ui: &mut egui::Ui, ctx: &egui::Context) {
     if ui.button("⚙").on_hover_text("Settings").clicked() {
         app.show_settings = true;
     }
+    let passthrough_on = app.is_passthrough();
+    if ui
+        .selectable_label(passthrough_on, "🖱")
+        .on_hover_text(format!("Click-through — {}", app.prefs.passthrough_hotkey))
+        .clicked()
+    {
+        app.toggle_passthrough(ctx);
+    }
     if ui.button("✖").on_hover_text("Hide overlay — Esc").clicked() {
         app.hide_overlay(ctx);
     }
@@ -230,6 +238,7 @@ pub fn export_dialog(app: &mut OlyApp, ctx: &egui::Context) {
 pub fn settings_dialog(app: &mut OlyApp, ctx: &egui::Context) {
     let mut open = app.show_settings;
     let mut apply_hotkey = false;
+    let mut apply_passthrough_hotkey = false;
     let mut export_dir = app.prefs.export_dir.clone().unwrap_or_default();
     let mut export_dir_changed = false;
     let mut pick_dir = false;
@@ -245,6 +254,14 @@ pub fn settings_dialog(app: &mut OlyApp, ctx: &egui::Context) {
                 ui.text_edit_singleline(&mut app.hotkey_input);
                 if ui.button("Apply").clicked() {
                     apply_hotkey = true;
+                }
+            });
+            ui.add_space(6.0);
+            ui.label("Passthrough hotkey (e.g. CmdOrCtrl+Shift+P):");
+            ui.horizontal(|ui| {
+                ui.text_edit_singleline(&mut app.passthrough_hotkey_input);
+                if ui.button("Apply").clicked() {
+                    apply_passthrough_hotkey = true;
                 }
             });
             ui.add_space(6.0);
@@ -273,6 +290,9 @@ pub fn settings_dialog(app: &mut OlyApp, ctx: &egui::Context) {
     }
     if apply_hotkey {
         app.apply_hotkey();
+    }
+    if apply_passthrough_hotkey {
+        app.apply_passthrough_hotkey();
     }
     app.show_settings = open;
 }

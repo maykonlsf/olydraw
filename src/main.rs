@@ -15,6 +15,15 @@ fn main() -> eframe::Result {
         return Ok(());
     }
 
+    // `olydraw passthrough`: forward to the running instance and exit.
+    if std::env::args().nth(1).as_deref() == Some("passthrough") {
+        if let Err(e) = ipc::send(&socket, IpcCommand::PassthroughToggle) {
+            eprintln!("olydraw: no running instance ({e})");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
+
     // Start hidden (tray/background only) for launch-at-login use: `--hidden`
     // or OLYDRAW_START_HIDDEN=1.
     let start_hidden = std::env::args().any(|a| a == "--hidden")

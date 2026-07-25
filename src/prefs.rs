@@ -11,6 +11,7 @@ pub struct Prefs {
     pub stroke_width: f32,
     pub palette: Vec<[u8; 4]>,
     pub hotkey: String,
+    pub passthrough_hotkey: String,
     pub export_dir: Option<String>,
     pub export_mode: ExportMode,
 }
@@ -35,6 +36,7 @@ impl Default for Prefs {
                 [255, 255, 255, 255],
             ],
             hotkey: "Ctrl+Shift+D".to_string(),
+            passthrough_hotkey: "Ctrl+Shift+P".to_string(),
             export_dir: None,
             export_mode: ExportMode::AnnotationOnly,
         }

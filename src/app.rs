@@ -25,6 +25,7 @@ const COMPOSITE_DELAY: Duration = Duration::from_millis(350);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppCmd {
     Toggle,
+    PassthroughToggle,
     Clear,
     Quit,
 }
@@ -87,6 +88,7 @@ pub struct OlyApp {
     pub show_export: bool,
     pub show_settings: bool,
     pub hotkey_input: String,
+    pub passthrough_hotkey_input: String,
     pub status: Option<(String, Instant)>,
     pending_cmds: Arc<Mutex<Vec<AppCmd>>>,
     pending_composite: Option<Instant>,
@@ -94,6 +96,7 @@ pub struct OlyApp {
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     _tray: Option<crate::tray::Tray>,
     visible: bool,
+    passthrough: bool,
     /// Set at startup when launched with `--hidden`; consumed on the first
     /// frame to send the OS-level hide command (see `logic`).
     hide_pending: bool,
@@ -133,6 +136,7 @@ impl OlyApp {
                 while let Ok(cmd) = ipc_rx.recv() {
                     match cmd {
                         IpcCommand::Toggle => push(AppCmd::Toggle),
+                        IpcCommand::PassthroughToggle => push(AppCmd::PassthroughToggle),
                     }
                 }
             });
@@ -141,17 +145,35 @@ impl OlyApp {
         let mut status = None;
         let hotkey = {
             let push = push_cmd.clone();
-            match HotkeyManager::new(move || push(AppCmd::Toggle)) {
-                Ok(mut manager) => match manager.rebind(&prefs.hotkey) {
-                    Ok(()) => Some(manager),
-                    Err(e) => {
+            match HotkeyManager::new(move |action| {
+                push(match action {
+                    crate::hotkey::HotkeyAction::Toggle => AppCmd::Toggle,
+                    crate::hotkey::HotkeyAction::Passthrough => AppCmd::PassthroughToggle,
+                })
+            }) {
+                Ok(mut manager) => {
+                    if let Err(e) =
+                        manager.rebind(crate::hotkey::HotkeyAction::Toggle, &prefs.hotkey)
+                    {
                         status = Some((
                             format!("hotkey '{}' not registered: {e}", prefs.hotkey),
                             Instant::now(),
                         ));
-                        Some(manager)
                     }
-                },
+                    if let Err(e) = manager.rebind(
+                        crate::hotkey::HotkeyAction::Passthrough,
+                        &prefs.passthrough_hotkey,
+                    ) {
+                        status = Some((
+                            format!(
+                                "passthrough hotkey '{}' not registered: {e}",
+                                prefs.passthrough_hotkey
+                            ),
+                            Instant::now(),
+                        ));
+                    }
+                    Some(manager)
+                }
                 Err(e) => {
                     status = Some((format!("global hotkey unavailable: {e}"), Instant::now()));
                     None
@@ -176,6 +198,7 @@ impl OlyApp {
         let _ = crate::platform_macos::elevate_window(cc);
 
         let hotkey_input = prefs.hotkey.clone();
+        let passthrough_hotkey_input = prefs.passthrough_hotkey.clone();
         Self {
             scene: Scene::new(),
             tool: ToolKind::Freehand,
@@ -189,6 +212,7 @@ impl OlyApp {
             show_export: false,
             show_settings: false,
             hotkey_input,
+            passthrough_hotkey_input,
             status,
             pending_cmds,
             pending_composite: None,
@@ -196,6 +220,7 @@ impl OlyApp {
             #[cfg(any(target_os = "macos", target_os = "windows"))]
             _tray: tray,
             visible: !start_hidden,
+            passthrough: false,
             hide_pending: start_hidden,
             sized: false,
             capture_point: None,
@@ -231,11 +256,28 @@ impl OlyApp {
             self.set_status("global hotkey unavailable on this system");
             return;
         };
-        match manager.rebind(&binding) {
+        match manager.rebind(crate::hotkey::HotkeyAction::Toggle, &binding) {
             Ok(()) => {
                 self.prefs.hotkey = binding.clone();
                 self.mark_prefs_dirty();
                 self.set_status(format!("hotkey set to {binding}"));
+            }
+            Err(e) => self.set_status(format!("invalid hotkey '{binding}': {e}")),
+        }
+    }
+
+    /// Applies a new passthrough hotkey binding string, persisting it on success.
+    pub fn apply_passthrough_hotkey(&mut self) {
+        let binding = self.passthrough_hotkey_input.trim().to_string();
+        let Some(manager) = &mut self.hotkey else {
+            self.set_status("global hotkey unavailable on this system");
+            return;
+        };
+        match manager.rebind(crate::hotkey::HotkeyAction::Passthrough, &binding) {
+            Ok(()) => {
+                self.prefs.passthrough_hotkey = binding.clone();
+                self.mark_prefs_dirty();
+                self.set_status(format!("passthrough hotkey set to {binding}"));
             }
             Err(e) => self.set_status(format!("invalid hotkey '{binding}': {e}")),
         }
@@ -299,6 +341,23 @@ impl OlyApp {
         }
     }
 
+    pub fn is_passthrough(&self) -> bool {
+        self.passthrough
+    }
+
+    /// Toggles click-through mode: drawings stay visible but mouse input
+    /// passes through to the desktop underneath. No-op while hidden.
+    pub fn toggle_passthrough(&mut self, ctx: &egui::Context) {
+        if !self.visible {
+            return;
+        }
+        self.commit_text_edit();
+        self.commit_drag();
+        self.laser.clear();
+        self.passthrough = !self.passthrough;
+        ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(self.passthrough));
+    }
+
     fn toggle_visibility(&mut self, ctx: &egui::Context) {
         self.visible = !self.visible;
         if self.visible {
@@ -308,6 +367,10 @@ impl OlyApp {
         } else {
             self.commit_text_edit();
             self.commit_drag();
+            if self.passthrough {
+                self.passthrough = false;
+                ctx.send_viewport_cmd(egui::ViewportCommand::MousePassthrough(false));
+            }
             self.laser.clear();
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         }
@@ -852,6 +915,7 @@ impl eframe::App for OlyApp {
         for cmd in cmds {
             match cmd {
                 AppCmd::Toggle => self.toggle_visibility(ctx),
+                AppCmd::PassthroughToggle => self.toggle_passthrough(ctx),
                 AppCmd::Clear => self.clear_canvas(),
                 AppCmd::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }

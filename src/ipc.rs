@@ -10,6 +10,7 @@ use interprocess::local_socket::{ListenerOptions, Name, Stream, prelude::*};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IpcCommand {
     Toggle,
+    PassthroughToggle,
 }
 
 const CLOSE_MARKER: &str = "__close__";
@@ -56,6 +57,7 @@ pub fn bind(name: &str) -> Result<(IpcServer, Receiver<IpcCommand>), String> {
 pub fn send(name: &str, cmd: IpcCommand) -> Result<(), String> {
     let line = match cmd {
         IpcCommand::Toggle => "toggle\n",
+        IpcCommand::PassthroughToggle => "passthrough\n",
     };
     send_line(name, line)
 }
@@ -70,6 +72,11 @@ fn listen(listener: interprocess::local_socket::Listener, tx: Sender<IpcCommand>
         match line.trim() {
             "toggle" => {
                 if tx.send(IpcCommand::Toggle).is_err() {
+                    return;
+                }
+            }
+            "passthrough" => {
+                if tx.send(IpcCommand::PassthroughToggle).is_err() {
                     return;
                 }
             }

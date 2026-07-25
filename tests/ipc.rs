@@ -18,6 +18,17 @@ fn toggle_sent_by_client_reaches_server() {
 }
 
 #[test]
+fn passthrough_toggle_sent_by_client_reaches_server() {
+    let name = unique_name("passthrough");
+    let (_server, rx) = bind(&name).expect("bind");
+    send(&name, IpcCommand::PassthroughToggle).expect("send");
+    let got = rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("command delivered");
+    assert_eq!(got, IpcCommand::PassthroughToggle);
+}
+
+#[test]
 fn multiple_toggles_arrive_in_order() {
     let name = unique_name("multi");
     let (_server, rx) = bind(&name).expect("bind");

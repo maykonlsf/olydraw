@@ -8,11 +8,23 @@ fn save_then_load_round_trips() {
         stroke_width: 5.5,
         palette: vec![[9, 9, 9, 255], [7, 7, 7, 255]],
         hotkey: "Ctrl+Shift+X".to_string(),
+        passthrough_hotkey: "Ctrl+Shift+Y".to_string(),
         export_dir: Some("/tmp/exports".to_string()),
         export_mode: ExportMode::ScreenComposite,
     };
     save_to(dir.path(), &prefs).expect("save");
     assert_eq!(load_from(dir.path()), prefs);
+}
+
+#[test]
+fn missing_passthrough_hotkey_falls_back_to_default() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("prefs.toml"), "stroke_width = 9.0\n").unwrap();
+    let prefs = load_from(dir.path());
+    assert_eq!(
+        prefs.passthrough_hotkey,
+        Prefs::default().passthrough_hotkey
+    );
 }
 
 #[test]
